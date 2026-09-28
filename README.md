@@ -1,4 +1,25 @@
-pip install -r requirements.txt
+git clone <repository-url>
+   cd packet-sniffer
+   ```
+
+2. **Install Dependencies**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+## Usage Instructions
+
+### Getting Started
+
+Follow these steps to use the packet sniffer:
+
+1. **Install Dependencies**
+
+   Ensure all required packages are installed:
+
+   ```bash
+   pip install -r requirements.txt
    ```
 
 2. **Run the Packet Sniffer**
