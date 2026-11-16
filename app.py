@@ -288,7 +288,7 @@ def run(host="0.0.0.0", port=5000, debug=False):
 
 
 if __name__ == "__main__":
-    port = 5000
+    port = int(os.environ.get("PORT", 5000))
     if len(sys.argv) > 1 and sys.argv[1].isdigit():
         port = int(sys.argv[1])
     run(port=port)

@@ -123,8 +123,8 @@ def main():
     parser.add_argument(
         "--port",
         type=int,
-        default=5000,
-        help="Web dashboard port (default: 5000)",
+        default=int(os.environ.get("PORT", 5000)),
+        help="Web dashboard port (default: 5000 or $PORT environment variable)",
     )
     args = parser.parse_args()
 
