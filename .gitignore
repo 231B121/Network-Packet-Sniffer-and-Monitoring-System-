@@ -1,0 +1,24 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Captured PCAP files and exports
+*.pcap
+*.cap
+
+# OS & Editor generated files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment & secrets
+.env

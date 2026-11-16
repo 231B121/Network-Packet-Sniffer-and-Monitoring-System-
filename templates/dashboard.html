@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Network Packet Analyzer &amp; Flow Observatory</title>
+  <style>
+    :root {
+      --bg-canvas: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f1f5f9;
+      --bg-hover: #f8fafc;
+
+      --border-subtle: #e2e8f0;
+      --border-medium: #cbd5e1;
+
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+
+      /* Primary Brand */
+      --brand: #2563eb;
+      --brand-hover: #1d4ed8;
+      --brand-subtle: #eff6ff;
+      --brand-border: #bfdbfe;
+
+      /* Inbound / Download (Emerald) */
+      --inbound: #059669;
+      --inbound-bg: #ecfdf5;
+      --inbound-border: #a7f3d0;
+
+      /* Outbound / Upload (Blue) */
+      --outbound: #0284c7;
+      --outbound-bg: #f0f9ff;
+      --outbound-border: #bae6fd;
+
+      /* Local LAN (Amber) */
+      --local: #d97706;
+      --local-bg: #fffbeb;
+      --local-border: #fde68a;
+
+      /* Danger / Stop */
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+      --danger-bg: #fef2f2;
+      --danger-border: #fecaca;
+
+      /* Protocols */
+      --tcp: #2563eb;
+      --tcp-bg: #eff6ff;
+      --udp: #7c3aed;
+      --udp-bg: #f5f3ff;
+      --icmp: #d97706;
+      --icmp-bg: #fffbeb;
+      --arp: #059669;
+      --arp-bg: #ecfdf5;
+
+      --radius-lg: 10px;
+      --radius-md: 6px;
+      --radius-sm: 4px;
+
+      --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+      --shadow-modal: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 10px 14px 24px;
+      min-height: 100vh;
+      width: 100%;
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* 1. Header Toolbar */
+    header {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      box-shadow: var(--shadow-card);
+      width: 100%;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: var(--brand-subtle);
+      border: 1px solid var(--brand-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--brand);
+      flex-shrink: 0;
+    }
+    .brand-title h1 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-title p {
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Status Pill */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 700;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-medium);
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+    }
+    .status-badge.active {
+      background: var(--inbound-bg);
+      border-color: var(--inbound-border);
+      color: var(--inbound);
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .status-badge.active .pulse-dot {
+      animation: pulse-ring 1.6s infinite ease-in-out;
+    }
+    @keyframes pulse-ring {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.8); }
+    }
+
+    .session-clock {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      padding: 5px 12px;
+      border-radius: 9999px;
+    }
+
+    /* Action Buttons (Medium Balanced Sizing) */
+    .btn {
+      height: 38px;
+      padding: 0 16px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 700;
+      font-family: var(--font-sans);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-start {
+      background: var(--inbound);
+      color: #ffffff;
+    }
+    .btn-start:hover {
+      background: #047857;
+    }
+    .btn-stop {
+      background: var(--danger);
+      color: #ffffff;
+    }
+    .btn-stop:hover {
+      background: var(--danger-hover);
+    }
+    .btn-outline {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      border-color: var(--border-medium);
+    }
+    .btn-outline:hover {
+      background: var(--bg-subtle);
+      border-color: #94a3b8;
+    }
+
+    /* 2. Controls & Configuration Toolbar */
+    .config-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 16px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .config-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+
+    .field-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 180px;
+      flex: 1;
+    }
+    .field-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    select, input[type="text"] {
+      height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-md);
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      font-size: 13.5px;
+      font-family: var(--font-sans);
+      outline: none;
+      transition: all 0.15s ease;
+      width: 100%;
+    }
+    select:focus, input[type="text"]:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+    select {
+      cursor: pointer;
+    }
+
+    /* 3. Metric KPI Cards Grid (Medium Clean) */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      width: 100%;
+    }
+    @media (max-width: 1100px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 600px) {
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .kpi-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: transform 0.15s ease;
+    }
+    .kpi-card:hover {
+      transform: translateY(-1px);
+    }
+
+    .kpi-border-total    { border-left: 4px solid #64748b; }
+    .kpi-border-download { border-left: 4px solid var(--inbound); }
+    .kpi-border-upload   { border-left: 4px solid var(--outbound); }
+    .kpi-border-rate     { border-left: 4px solid var(--local); }
+
+    .kpi-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .icon-slate   { background: var(--bg-subtle); color: var(--text-muted); }
+    .icon-emerald { background: var(--inbound-bg); color: var(--inbound); }
+    .icon-blue    { background: var(--outbound-bg); color: var(--outbound); }
+    .icon-amber   { background: var(--local-bg); color: var(--local); }
+
+    .kpi-meta {
+      display: flex;
+      flex-direction: column;
+    }
+    .kpi-heading {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .kpi-val {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.2;
+      margin-top: 2px;
+    }
+    .kpi-footnote {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 1px;
+    }
+
+    /* 4. Traffic Flow & Packet Table Section */
+    .table-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .table-header-tools {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: #ffffff;
+    }
+
+    /* Filter Tabs */
+    .tab-pills {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg-subtle);
+      padding: 3px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      flex-wrap: wrap;
+    }
+    .tab-item {
+      padding: 6px 14px;
+      font-size: 12.5px;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .tab-item:hover {
+      color: var(--text-primary);
+    }
+    .tab-item.active {
+      background: var(--brand);
+      color: #ffffff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .table-tools-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .search-input {
+      height: 36px;
+      width: 270px;
+      padding: 0 12px;
+      font-size: 13px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-medium);
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      outline: none;
+    }
+    .search-input:focus {
+      border-color: var(--brand);
+    }
+
+    /* Scrollable Packet Table */
+    .table-scroll {
+      height: calc(100vh - 340px);
+      min-height: 480px;
+      overflow-y: auto;
+      overflow-x: auto;
+      width: 100%;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      text-align: left;
+    }
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #f8fafc;
+      color: var(--text-secondary);
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 12px 16px;
+      border-bottom: 1.5px solid var(--border-subtle);
+      z-index: 2;
+      white-space: nowrap;
+    }
+    tbody td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    /* Highlighted Rows with Left Border */
+    tbody tr.packet-row {
+      cursor: pointer;
+      transition: background 0.1s ease;
+      background: #ffffff;
+    }
+    tbody tr.packet-row:hover {
+      background: #f8fafc !important;
+    }
+    tbody tr.packet-row:nth-child(even) {
+      background: #fcfcfd;
+    }
+
+    tbody tr.flow-inbound {
+      border-left: 4px solid var(--inbound);
+    }
+    tbody tr.flow-outbound {
+      border-left: 4px solid var(--outbound);
+    }
+    tbody tr.flow-local {
+      border-left: 4px solid var(--local);
+    }
+
+    /* Traffic Direction Badges */
+    .flow-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .badge-in {
+      background: var(--inbound-bg);
+      color: var(--inbound);
+      border: 1px solid var(--inbound-border);
+    }
+    .badge-out {
+      background: var(--outbound-bg);
+      color: var(--outbound);
+      border: 1px solid var(--outbound-border);
+    }
+    .badge-lan {
+      background: var(--local-bg);
+      color: var(--local);
+      border: 1px solid var(--local-border);
+    }
+
+    /* Entity Host Column Display */
+    .entity-box {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .entity-primary {
+      font-weight: 700;
+      color: var(--text-primary);
+      font-size: 13.5px;
+    }
+    .entity-secondary {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Protocol Badges */
+    .proto-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .proto-tcp  { background: var(--tcp-bg); color: var(--tcp); border: 1px solid #bfdbfe; }
+    .proto-udp  { background: var(--udp-bg); color: var(--udp); border: 1px solid #ddd6fe; }
+    .proto-icmp { background: var(--icmp-bg); color: var(--icmp); border: 1px solid #fde68a; }
+    .proto-arp  { background: var(--arp-bg); color: var(--arp); border: 1px solid #a7f3d0; }
+    .proto-def  { background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-subtle); }
+
+    /* 5. Deep Packet Inspection (DPI) Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.5);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+    .modal-backdrop.open { display: flex; }
+
+    .modal-dialog {
+      background: #ffffff;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 820px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-modal);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 16px 22px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .btn-modal-close {
+      background: transparent;
+      border: none;
+      font-size: 24px;
+      color: var(--text-muted);
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+    }
+    .btn-modal-close:hover {
+      background: #e2e8f0;
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      padding: 20px 22px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Connection Diagram */
+    .conn-diagram {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .conn-side {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .conn-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #1e40af;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .conn-host {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .conn-address {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+    .conn-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: var(--brand);
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .diagnostic-box {
+      background: #f8fafc;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .layer-card {
+      background: #ffffff;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .layer-heading {
+      background: #f8fafc;
+      padding: 9px 16px;
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      display: flex;
+      justify-content: space-between;
+    }
+    .layer-content-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px 16px;
+      padding: 12px 16px;
+      font-size: 13.5px;
+    }
+    .layer-field {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .field-key {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .field-val {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--text-primary);
+      word-break: break-all;
+    }
+
+    .hexdump-terminal {
+      background: #f8fafc;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.5;
+      color: #0f172a;
+      overflow-x: auto;
+      white-space: pre;
+      max-height: 200px;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: #f8fafc; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- 1. Header Toolbar -->
+    <header>
+      <div class="brand-section">
+        <div class="brand-icon">
+          <!-- Radar SVG -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/>
+            <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/>
+            <circle cx="12" cy="12" r="2"/>
+            <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/>
+            <path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/>
+          </svg>
+        </div>
+        <div class="brand-title">
+          <h1>PacketSniffer // Network Observatory</h1>
+          <p>Real-Time Packet Flow &amp; Entity Inspection</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div id="status-pill" class="status-badge">
+          <span class="pulse-dot"></span>
+          <span id="status-text">Sniffer Idle</span>
+        </div>
+        <div id="clock-display" class="session-clock">00:00:00</div>
+
+        <button id="btn-start" class="btn btn-start" onclick="startCapture()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          Start Capture
+        </button>
+
+        <button id="btn-stop" class="btn btn-stop" onclick="stopCapture()" style="display: none;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+          Stop Capture
+        </button>
+
+        <button class="btn btn-outline" onclick="clearPackets()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Clear
+        </button>
+
+        <a href="/api/export/pcap" class="btn btn-outline" download title="Export Wireshark PCAP File">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export PCAP
+        </a>
+      </div>
+    </header>
+
+    <!-- 2. Controls & Configuration Toolbar -->
+    <div class="config-card">
+      <div class="config-group">
+        <div class="field-wrap">
+          <label class="field-title">Network Interface</label>
+          <select id="iface-select">
+            <option value="">Auto-detect (All Interfaces)</option>
+          </select>
+        </div>
+
+        <div class="field-wrap">
+          <label class="field-title">BPF Filter Rule</label>
+          <select id="preset-select">
+            <option value="">All Traffic (No Filter)</option>
+            <option value="tcp">TCP Traffic Only</option>
+            <option value="udp">UDP Traffic Only</option>
+            <option value="icmp">Ping (ICMP)</option>
+            <option value="port 80 or port 443">Web Traffic (HTTP &amp; HTTPS)</option>
+            <option value="port 53">DNS Queries</option>
+          </select>
+        </div>
+
+        <div class="field-wrap">
+          <label class="field-title">Execution Mode</label>
+          <select id="mode-select">
+            <option value="simulated" selected>Safe Simulation (Offline Demo Mode)</option>
+            <option value="live">Live Hardware Sniffing (Requires Root)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Metric KPI Cards Grid (Medium & Clean) -->
+    <div class="kpi-grid">
+      <div class="kpi-card kpi-border-total">
+        <div class="kpi-icon icon-slate">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        </div>
+        <div class="kpi-meta">
+          <span class="kpi-heading">Total Traffic</span>
+          <span class="kpi-val" id="kpi-total">0</span>
+          <span class="kpi-footnote" id="kpi-bytes">0 B total volume</span>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-border-download">
+        <div class="kpi-icon icon-emerald">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </div>
+        <div class="kpi-meta">
+          <span class="kpi-heading" style="color:var(--inbound);">Inbound (Download ⬇)</span>
+          <span class="kpi-val" id="kpi-in-bytes" style="color:var(--inbound);">0 B</span>
+          <span class="kpi-footnote" id="kpi-in-pkts">0 frames received</span>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-border-upload">
+        <div class="kpi-icon icon-blue">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div class="kpi-meta">
+          <span class="kpi-heading" style="color:var(--outbound);">Outbound (Upload ⬆)</span>
+          <span class="kpi-val" id="kpi-out-bytes" style="color:var(--outbound);">0 B</span>
+          <span class="kpi-footnote" id="kpi-out-pkts">0 frames transmitted</span>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-border-rate">
+        <div class="kpi-icon icon-amber">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="kpi-meta">
+          <span class="kpi-heading">Velocity</span>
+          <span class="kpi-val" id="kpi-pps">0.0</span>
+          <span class="kpi-footnote" id="kpi-bps">0 B/s throughput</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Interactive Packet Stream Table -->
+    <div class="table-container">
+      <div class="table-header-tools">
+        <!-- Filter Tabs -->
+        <div class="tab-pills">
+          <button class="tab-item active" onclick="setFilter('ALL')">ALL FRAMES</button>
+          <button class="tab-item" onclick="setFilter('INCOMING')" style="color:var(--inbound);">INBOUND ⬇</button>
+          <button class="tab-item" onclick="setFilter('OUTGOING')" style="color:var(--outbound);">OUTBOUND ⬆</button>
+          <button class="tab-item" onclick="setFilter('TCP')">TCP</button>
+          <button class="tab-item" onclick="setFilter('UDP')">UDP</button>
+          <button class="tab-item" onclick="setFilter('ICMP')">ICMP</button>
+        </div>
+
+        <div class="table-tools-right">
+          <input type="text" id="search-box" class="search-input" placeholder="Filter by host, service, or IP..." oninput="handleSearch()" />
+
+          <label style="display:flex; align-items:center; gap:5px; font-size:13px; font-weight:700; color:var(--text-secondary); cursor:pointer;">
+            <input type="checkbox" id="chk-autoscroll" checked /> Auto-scroll
+          </label>
+
+          <button id="btn-pause-feed" class="btn btn-outline" style="height:36px; padding:0 12px; font-size:12.5px;" onclick="togglePauseFeed()">
+            ⏸ Pause Feed
+          </button>
+        </div>
+      </div>
+
+      <!-- Table Area -->
+      <div class="table-scroll" id="scroll-box">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 60px;">#ID</th>
+              <th style="width: 90px;">Time</th>
+              <th style="width: 130px;">Traffic Direction</th>
+              <th>Source Entity</th>
+              <th style="width: 28px; text-align: center;"></th>
+              <th>Destination Entity</th>
+              <th style="width: 80px;">Protocol</th>
+              <th style="width: 80px;">Length</th>
+              <th style="width: 100px; text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="packet-tbody">
+            <tr>
+              <td colspan="9" style="text-align: center; padding: 50px 20px; color: var(--text-muted);">
+                <div style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">No Frames Captured Yet</div>
+                Click <strong>"Start Capture"</strong> above to begin monitoring live network traffic.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 5. Deep Packet Inspection (DPI) Modal -->
+  <div class="modal-backdrop" id="modal-box" onclick="closeModalOnBackdrop(event)">
+    <div class="modal-dialog" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 id="modal-title">Deep Packet Inspection</h3>
+        <button class="btn-modal-close" onclick="closeModal()">&times;</button>
+      </div>
+
+      <div class="modal-body" id="modal-body">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      running: false,
+      feedPaused: false,
+      activeFilter: 'ALL',
+      searchQuery: '',
+      packetsCache: [],
+      isAdmin: false
+    };
+
+    function formatDuration(secs) {
+      const h = Math.floor(secs / 3600).toString().padStart(2, '0');
+      const m = Math.floor((secs % 3600) / 60).toString().padStart(2, '0');
+      const s = (secs % 60).toString().padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    }
+
+    async function fetchInterfaces() {
+      try {
+        const res = await fetch('/api/interfaces');
+        const data = await res.json();
+        state.isAdmin = data.is_admin;
+
+        const sel = document.getElementById('iface-select');
+        sel.innerHTML = '<option value="">Auto-detect (All Interfaces)</option>';
+        (data.interfaces || []).forEach(iface => {
+          const opt = document.createElement('option');
+          opt.value = iface;
+          opt.textContent = iface;
+          sel.appendChild(opt);
+        });
+      } catch (err) {
+        console.error('Interfaces fetch error:', err);
+      }
+    }
+
+    async function startCapture() {
+      const iface = document.getElementById('iface-select').value;
+      const filter = document.getElementById('preset-select').value;
+      const mode = document.getElementById('mode-select').value;
+
+      const payload = {
+        iface: iface || null,
+        filter: filter || null,
+        simulated: mode === 'simulated' ? true : !state.isAdmin,
+        auto_fallback: true
+      };
+
+      try {
+        const res = await fetch('/api/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.error) {
+          alert('Error: ' + data.error);
+        } else {
+          updateUIState(true, data.mode === 'simulated');
+        }
+      } catch (err) {
+        alert('Network request error: ' + err);
+      }
+    }
+
+    async function stopCapture() {
+      try {
+        await fetch('/api/stop', { method: 'POST' });
+        updateUIState(false);
+      } catch (err) {
+        console.error('Stop error:', err);
+      }
+    }
+
+    async function clearPackets() {
+      try {
+        await fetch('/api/clear', { method: 'POST' });
+        state.packetsCache = [];
+        document.getElementById('packet-tbody').innerHTML = `
+          <tr>
+            <td colspan="9" style="text-align: center; padding: 50px 20px; color: var(--text-muted);">
+              <div style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">Session Cleared</div>
+              Capturing fresh packets...
+            </td>
+          </tr>`;
+        pollStats();
+      } catch (err) {
+        console.error('Clear error:', err);
+      }
+    }
+
+    function updateUIState(running, isSimulated = false) {
+      state.running = running;
+      const pill = document.getElementById('status-pill');
+      const pillText = document.getElementById('status-text');
+      const btnStart = document.getElementById('btn-start');
+      const btnStop = document.getElementById('btn-stop');
+
+      if (running) {
+        pill.className = 'status-badge active';
+        pillText.textContent = isSimulated ? 'Simulation Active' : 'Live Capture Active';
+        btnStart.style.display = 'none';
+        btnStop.style.display = 'inline-flex';
+      } else {
+        pill.className = 'status-badge';
+        pillText.textContent = 'Sniffer Idle';
+        btnStart.style.display = 'inline-flex';
+        btnStop.style.display = 'none';
+      }
+    }
+
+    function togglePauseFeed() {
+      state.feedPaused = !state.feedPaused;
+      const btn = document.getElementById('btn-pause-feed');
+      if (state.feedPaused) {
+        btn.innerHTML = '▶ Resume Feed';
+        btn.style.color = 'var(--local)';
+      } else {
+        btn.innerHTML = '⏸ Pause Feed';
+        btn.style.color = 'var(--text-primary)';
+      }
+    }
+
+    function setFilter(filterVal) {
+      state.activeFilter = filterVal;
+      document.querySelectorAll('.tab-pills .tab-item').forEach(b => {
+        b.classList.toggle('active', b.textContent.includes(filterVal) || (filterVal === 'ALL' && b.textContent === 'ALL FRAMES'));
+      });
+      renderTable();
+    }
+
+    function handleSearch() {
+      state.searchQuery = document.getElementById('search-box').value.trim();
+      renderTable();
+    }
+
+    async function pollStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const s = await res.json();
+
+        updateUIState(s.running, s.mode === 'simulated');
+
+        document.getElementById('kpi-total').textContent = (s.total || 0).toLocaleString();
+        document.getElementById('kpi-bytes').textContent = s.bytes_formatted || '0 B';
+        document.getElementById('kpi-pps').textContent = (s.pps || 0).toFixed(1);
+        document.getElementById('kpi-bps').textContent = (s.bps_formatted || '0 B/s');
+        document.getElementById('clock-display').textContent = formatDuration(s.uptime_seconds || 0);
+
+        const inBytes = s.incoming_bytes || 0;
+        const outBytes = s.outgoing_bytes || 0;
+        const inPkts = s.incoming_packets || 0;
+        const outPkts = s.outgoing_packets || 0;
+
+        document.getElementById('kpi-in-bytes').textContent = s.incoming_bytes_formatted || '0 B';
+        document.getElementById('kpi-in-pkts').textContent = `${inPkts.toLocaleString()} frames received`;
+        document.getElementById('kpi-out-bytes').textContent = s.outgoing_bytes_formatted || '0 B';
+        document.getElementById('kpi-out-pkts').textContent = `${outPkts.toLocaleString()} frames sent`;
+      } catch (err) {
+        console.error('Stats poll error:', err);
+      }
+    }
+
+    async function pollPackets() {
+      if (state.feedPaused) return;
+
+      try {
+        const params = new URLSearchParams({ limit: 80 });
+        const res = await fetch(`/api/packets?${params.toString()}`);
+        const packets = await res.json();
+        state.packetsCache = packets;
+        renderTable();
+      } catch (err) {
+        console.error('Packets poll error:', err);
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('packet-tbody');
+      let filtered = state.packetsCache || [];
+
+      // Filter by Direction or Protocol
+      if (state.activeFilter === 'INCOMING') {
+        filtered = filtered.filter(p => p.direction === 'incoming');
+      } else if (state.activeFilter === 'OUTGOING') {
+        filtered = filtered.filter(p => p.direction === 'outgoing');
+      } else if (['TCP', 'UDP', 'ICMP', 'ARP'].includes(state.activeFilter)) {
+        filtered = filtered.filter(p => (p.protocol || '').toUpperCase() === state.activeFilter);
+      }
+
+      // Search Query
+      if (state.searchQuery) {
+        const q = state.searchQuery.toLowerCase();
+        filtered = filtered.filter(p => 
+          (p.src_entity && p.src_entity.toLowerCase().includes(q)) ||
+          (p.dst_entity && p.dst_entity.toLowerCase().includes(q)) ||
+          (p.src_ip && p.src_ip.includes(q)) ||
+          (p.dst_ip && p.dst_ip.includes(q)) ||
+          (p.protocol && p.protocol.toLowerCase().includes(q)) ||
+          (p.direction_label && p.direction_label.toLowerCase().includes(q))
+        );
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="9" style="text-align: center; padding: 50px 20px; color: var(--text-muted);">
+              No frames matching the current filter criteria.
+            </td>
+          </tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(p => {
+        const proto = p.protocol || 'OTHER';
+        const protoClass = `proto-badge proto-${proto.toLowerCase()}`;
+        const timePart = p.time ? p.time.split(' ')[1] : '';
+
+        // Direction indicator
+        const dir = p.direction || 'local';
+        let rowClass = 'flow-local';
+        let badgeClass = 'badge-lan';
+        let dirLabel = 'Local Network 🔄';
+
+        if (dir === 'outgoing') {
+          rowClass = 'flow-outbound';
+          badgeClass = 'badge-out';
+          dirLabel = 'Outbound ⬆';
+        } else if (dir === 'incoming') {
+          rowClass = 'flow-inbound';
+          badgeClass = 'badge-in';
+          dirLabel = 'Inbound ⬇';
+        }
+
+        const srcName = p.src_entity || p.src_ip || 'Unknown Endpoint';
+        const dstName = p.dst_entity || p.dst_ip || 'Unknown Endpoint';
+        const srcIP = (p.src_ip && p.src_ip !== '-') ? `${p.src_ip}${p.src_port ? ':' + p.src_port : ''}` : (p.src_mac || '-');
+        const dstIP = (p.dst_ip && p.dst_ip !== '-') ? `${p.dst_ip}${p.dst_port ? ':' + p.dst_port : ''}` : (p.dst_mac || '-');
+
+        return `
+          <tr class="packet-row ${rowClass}" onclick="inspectPacket(${p.id})">
+            <td style="font-family:var(--font-mono); font-weight:700; color:var(--text-muted);">#${p.id}</td>
+            <td style="font-family:var(--font-mono); color:var(--text-secondary);">${timePart}</td>
+            <td><span class="flow-badge ${badgeClass}">${dirLabel}</span></td>
+            <td>
+              <div class="entity-box">
+                <span class="entity-primary">${srcName}</span>
+                <span class="entity-secondary">${srcIP}</span>
+              </div>
+            </td>
+            <td style="color:var(--brand); font-weight:800; font-size:15px; text-align:center;">&rarr;</td>
+            <td>
+              <div class="entity-box">
+                <span class="entity-primary">${dstName}</span>
+                <span class="entity-secondary">${dstIP}</span>
+              </div>
+            </td>
+            <td><span class="${protoClass}">${proto}</span></td>
+            <td style="font-family:var(--font-mono); font-weight:600; color:var(--text-secondary);">${p.size} B</td>
+            <td style="text-align: right;">
+              <button class="btn btn-outline" style="height:30px; padding:0 12px; font-size:12px;" onclick="event.stopPropagation(); inspectPacket(${p.id})">
+                Inspect
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      if (document.getElementById('chk-autoscroll').checked) {
+        document.getElementById('scroll-box').scrollTop = 0;
+      }
+    }
+
+    async function inspectPacket(packetId) {
+      const modal = document.getElementById('modal-box');
+      const body = document.getElementById('modal-body');
+      document.getElementById('modal-title').textContent = `Frame #${packetId} Deep Inspection`;
+
+      body.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">Reading network frame headers...</div>';
+      modal.classList.add('open');
+
+      try {
+        const res = await fetch(`/api/packet/${packetId}`);
+        const p = await res.json();
+        renderModal(p);
+      } catch (err) {
+        body.innerHTML = `<div style="color:var(--danger); padding:20px;">Could not inspect frame: ${err}</div>`;
+      }
+    }
+
+    function renderModal(p) {
+      const body = document.getElementById('modal-body');
+      const proto = p.protocol || 'OTHER';
+
+      const srcName = p.src_entity || p.src_ip || 'Unknown Endpoint';
+      const dstName = p.dst_entity || p.dst_ip || 'Unknown Endpoint';
+      const dirText = p.direction_label || 'Local Network';
+
+      // 1. Connection Architecture Diagram
+      const connDiagram = `
+        <div class="conn-diagram">
+          <div class="conn-side">
+            <span class="conn-label">Source Host / Process</span>
+            <span class="conn-host">${srcName}</span>
+            <span class="conn-address">${p.src_ip || '-'}:${p.src_port || '0'}</span>
+          </div>
+
+          <div class="conn-center">
+            <span style="background:#ffffff; border:1px solid #bfdbfe; padding:2px 10px; border-radius:9999px; margin-bottom:4px;">${dirText}</span>
+            <span style="font-size:22px; line-height:1;">&rarr;</span>
+            <span style="font-size:11.5px; color:var(--text-muted);">${proto} (${p.size} bytes)</span>
+          </div>
+
+          <div class="conn-side" style="text-align:right;">
+            <span class="conn-label">Destination Host / Service</span>
+            <span class="conn-host">${dstName}</span>
+            <span class="conn-address">${p.dst_ip || '-'}:${p.dst_port || '0'}</span>
+          </div>
+        </div>
+      `;
+
+      // 2. Technical Diagnostic Summary
+      let summaryText = '';
+      if (proto === 'TCP') {
+        summaryText = `<strong>TCP Segment Analysis:</strong> Connection active between <strong>${srcName}</strong> and <strong>${dstName}</strong> on port ${p.dst_port || '?'}. Active TCP flags: [${(p.flags || []).join(', ') || 'None'}]. Frame length: ${p.size} bytes.`;
+      } else if (proto === 'UDP') {
+        const svc = (p.dst_port === 53 || p.src_port === 53) ? 'Domain Name Service (DNS)' : 'UDP Datagram';
+        summaryText = `<strong>UDP Datagram (${svc}):</strong> Stateless transmission between <strong>${srcName}</strong> and <strong>${dstName}</strong>. Payload volume: ${Math.max(0, p.size - 28)} bytes.`;
+      } else if (proto === 'ICMP') {
+        summaryText = `<strong>ICMP Control Frame:</strong> Echo ping diagnostics active between <strong>${srcName}</strong> and <strong>${dstName}</strong>.`;
+      } else {
+        summaryText = `<strong>${proto} Protocol Frame:</strong> Direct layer transfer between ${srcName} and ${dstName}.`;
+      }
+      const summaryCard = `<div class="diagnostic-box">${summaryText}</div>`;
+
+      // 3. Layer 2: Ethernet
+      const layer2 = `
+        <div class="layer-card">
+          <div class="layer-heading">
+            <span>Layer 2: Data Link Layer (Ethernet II)</span>
+            <span>Type: ${p.eth_type || '0x0800'}</span>
+          </div>
+          <div class="layer-content-grid">
+            <div class="layer-field"><span class="field-key">Source MAC</span><span class="field-val">${p.src_mac || '-'}</span></div>
+            <div class="layer-field"><span class="field-key">Destination MAC</span><span class="field-val">${p.dst_mac || '-'}</span></div>
+            <div class="layer-field"><span class="field-key">Frame Length</span><span class="field-val">${p.size} bytes</span></div>
+          </div>
+        </div>
+      `;
+
+      // 4. Layer 3: Network (IP)
+      const layer3 = `
+        <div class="layer-card">
+          <div class="layer-heading">
+            <span>Layer 3: Network Layer (IPv4)</span>
+            <span>TTL: ${p.ttl ?? 64}</span>
+          </div>
+          <div class="layer-content-grid">
+            <div class="layer-field"><span class="field-key">Source IP</span><span class="field-val" style="color:var(--brand);">${p.src_ip || '-'}</span></div>
+            <div class="layer-field"><span class="field-key">Destination IP</span><span class="field-val" style="color:var(--brand);">${p.dst_ip || '-'}</span></div>
+            <div class="layer-field"><span class="field-key">Protocol Name</span><span class="field-val">${proto}</span></div>
+            <div class="layer-field"><span class="field-key">Time to Live</span><span class="field-val">${p.ttl ?? '-'}</span></div>
+          </div>
+        </div>
+      `;
+
+      // 5. Layer 4: Transport (TCP / UDP / ICMP)
+      let layer4 = '';
+      if (proto === 'TCP') {
+        const flagList = (p.flags || []).join(', ') || 'None';
+        layer4 = `
+          <div class="layer-card">
+            <div class="layer-heading">
+              <span>Layer 4: Transport Layer (TCP Segment)</span>
+              <span>Flags: [${flagList}]</span>
+            </div>
+            <div class="layer-content-grid">
+              <div class="layer-field"><span class="field-key">Source Port</span><span class="field-val">${p.src_port || '-'}</span></div>
+              <div class="layer-field"><span class="field-key">Destination Port</span><span class="field-val">${p.dst_port || '-'}</span></div>
+              <div class="layer-field"><span class="field-key">Sequence Number</span><span class="field-val">${p.seq_num !== undefined ? p.seq_num : '0'}</span></div>
+              <div class="layer-field"><span class="field-key">TCP Flags</span><span class="field-val" style="color:var(--inbound);">${flagList}</span></div>
+            </div>
+          </div>
+        `;
+      } else if (proto === 'UDP') {
+        layer4 = `
+          <div class="layer-card">
+            <div class="layer-heading">
+              <span>Layer 4: Transport Layer (UDP Datagram)</span>
+              <span>Stateless</span>
+            </div>
+            <div class="layer-content-grid">
+              <div class="layer-field"><span class="field-key">Source Port</span><span class="field-val">${p.src_port || '-'}</span></div>
+              <div class="layer-field"><span class="field-key">Destination Port</span><span class="field-val">${p.dst_port || '-'}</span></div>
+              <div class="layer-field"><span class="field-key">Payload Volume</span><span class="field-val">${Math.max(0, p.size - 28)} bytes</span></div>
+            </div>
+          </div>
+        `;
+      } else if (proto === 'ICMP') {
+        layer4 = `
+          <div class="layer-card">
+            <div class="layer-heading">
+              <span>Layer 4: Control Message (ICMP)</span>
+              <span>${p.icmp || 'Control Echo'}</span>
+            </div>
+            <div class="layer-content-grid">
+              <div class="layer-field"><span class="field-key">Control Type</span><span class="field-val">${p.icmp_type ?? 8}</span></div>
+              <div class="layer-field"><span class="field-key">Message Code</span><span class="field-val">${p.icmp_code ?? 0}</span></div>
+            </div>
+          </div>
+        `;
+      }
+
+      // 6. Hex Dump Viewer
+      const hexDump = `
+        <div class="layer-card">
+          <div class="layer-heading">
+            <span>Payload Data &amp; Wireshark Hex Dump</span>
+            <span>Raw Frame Bytes</span>
+          </div>
+          <div style="padding: 10px;">
+            <div class="hexdump-terminal">${p.hexdump || 'No payload bytes'}</div>
+          </div>
+        </div>
+      `;
+
+      body.innerHTML = connDiagram + summaryCard + layer2 + layer3 + layer4 + hexDump;
+    }
+
+    function closeModal() {
+      document.getElementById('modal-box').classList.remove('open');
+    }
+
+    function closeModalOnBackdrop(e) {
+      if (e.target.id === 'modal-box') closeModal();
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') {
+        e.preventDefault();
+        togglePauseFeed();
+      } else if (e.code === 'Escape') {
+        closeModal();
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchInterfaces();
+      pollStats();
+      pollPackets();
+      setInterval(pollStats, 1000);
+      setInterval(pollPackets, 1200);
+    });
+  </script>
+</body>
+</html>
