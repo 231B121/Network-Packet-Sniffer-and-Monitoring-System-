@@ -1,6 +1,13 @@
 # 📡 Network Packet Sniffer & Traffic Flow Observatory
 ### Real-Time Network Packet Inspection, Entity Resolution & Bandwidth Monitoring
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-brightgreen?style=for-the-badge&logo=render)](https://network-packet-sniffer-and-monitoring.onrender.com)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue?style=for-the-badge&logo=docker)](file:///home/lynx/packet_sniffer_project/Dockerfile)
+[![Python](https://img.shields.io/badge/Python-3.11-yellow?style=for-the-badge&logo=python)](https://python.org)
+
+> 🌐 **Live Web Observatory URL:** [https://network-packet-sniffer-and-monitoring.onrender.com](https://network-packet-sniffer-and-monitoring.onrender.com)  
+> *Try the live interactive dashboard directly in your browser without any local setup.*
+
 A clean, modern, student-built network packet sniffer and monitoring observatory engineered in **Python**, **Scapy**, and **Flask**.
 
 This tool captures network traffic passing through your computer's network interface (Wi-Fi, Ethernet, or Loopback), identifies **where packets originate and where they are destined in human-readable terms** (e.g., `Google Chrome (Local Host) ➔ Google Services` or `Cloudflare DNS Resolver ➔ Local Host`), categorizes traffic direction (**Upload ⬆ vs Download ⬇**), and presents it in a clean, high-contrast, professional **Light Dashboard**.
@@ -9,15 +16,26 @@ This tool captures network traffic passing through your computer's network inter
 
 ## 📑 Table of Contents
 
-1. [Real-World Entity Resolution Engine](#-real-world-entity-resolution-engine)
-2. [Key Features](#-key-features)
-3. [System Architecture & File Structure](#-system-architecture--file-structure)
-4. [Installation & Prerequisites](#-installation--prerequisites)
-5. [How to Run: Web Dashboard](#-how-to-run-web-dashboard)
-6. [How to Run: CLI Terminal Mode](#-how-to-run-cli-terminal-mode)
-7. [Dashboard Interface Walkthrough](#-dashboard-interface-walkthrough)
-8. [Theoretical Networking Guide (Viva / Presentation)](#-theoretical-networking-guide-viva--presentation)
-9. [Troubleshooting & Frequently Asked Questions](#-troubleshooting--frequently-asked-questions)
+1. [Live Demo](#-live-demo)
+2. [Real-World Entity Resolution Engine](#-real-world-entity-resolution-engine)
+3. [Key Features](#-key-features)
+4. [System Architecture & File Structure](#-system-architecture--file-structure)
+5. [Installation & Prerequisites](#-installation--prerequisites)
+6. [How to Run: Docker](#-how-to-run-docker)
+7. [How to Run: Web Dashboard](#-how-to-run-web-dashboard)
+8. [How to Run: CLI Terminal Mode](#-how-to-run-cli-terminal-mode)
+9. [Dashboard Interface Walkthrough](#-dashboard-interface-walkthrough)
+10. [Theoretical Networking Guide (Viva / Presentation)](#-theoretical-networking-guide-viva--presentation)
+11. [Troubleshooting & Frequently Asked Questions](#-troubleshooting--frequently-asked-questions)
+
+---
+
+## 🌐 Live Demo
+
+You can test the fully interactive Web Dashboard online at:  
+👉 **[https://network-packet-sniffer-and-monitoring.onrender.com](https://network-packet-sniffer-and-monitoring.onrender.com)**
+
+*(Cloud deployments automatically operate in Safe Simulation Mode, generating real-time multi-protocol traffic for full feature demonstration).*
 
 ---
 
@@ -86,6 +104,37 @@ source .venv/bin/activate
 ```bash
 pip install -r requirements.txt
 ```
+
+---
+
+## 🐳 How to Run: Docker
+
+The fastest way to run the project without manual virtual environment setup:
+
+### Method 1: Using Docker Compose (Recommended)
+```bash
+# Start container in background
+docker compose up -d
+
+# View live application logs
+docker compose logs -f
+
+# Stop container
+docker compose down
+```
+- Open your browser at: **`http://localhost:5000`**
+
+### Method 2: Direct Docker Run (Host Network & Raw Socket Capture)
+```bash
+docker run -d \
+  --name packet-sniffer \
+  --restart unless-stopped \
+  --net=host \
+  --cap-add=NET_RAW \
+  --cap-add=NET_ADMIN \
+  packet-sniffer
+```
+- Open your browser at: **`http://localhost:5000`**
 
 ---
 
