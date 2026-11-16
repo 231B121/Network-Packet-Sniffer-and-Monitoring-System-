@@ -1,0 +1,14 @@
+services:
+  packet-sniffer:
+    build: .
+    image: packet-sniffer:latest
+    container_name: packet-sniffer
+    restart: unless-stopped
+    # Use host network mode on Linux to capture traffic across host interfaces (wlan0, eth0, lo)
+    network_mode: "host"
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    environment:
+      - PORT=5000
+      - PYTHONUNBUFFERED=1
